@@ -245,7 +245,7 @@ These two modules are complementary halves of the SAID × OWS integration:
 | **Gates** | Transaction signing | Message delivery |
 | **Based on** | Trust score → spending limits | Trust score → communication access |
 | **Payment** | Spending caps by tier | x402 micropayments |
-| **Use case** | "Can this agent spend $500?" | "Can this agent message me?" |
+| **Use case** | "Can this agent spend $250?" | "Can this agent message me?" |
 | **Safety ref** | Lobstar Wilde ($450K drained) | Spam/phishing prevention |
 
 Together they form a complete trust layer for OWS agent wallets:
