@@ -1,0 +1,35 @@
+{
+  "name": "said-ows-a2a",
+  "version": "1.0.0",
+  "description": "SAID Protocol identity-gated A2A communication for Open Wallet Standard agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "demo": "ts-node demo/cross-chain-demo.ts",
+    "demo:discover": "ts-node demo/discovery-demo.ts",
+    "test": "ts-node demo/cross-chain-demo.ts"
+  },
+  "keywords": [
+    "ows",
+    "open-wallet-standard",
+    "said-protocol",
+    "a2a",
+    "agent-to-agent",
+    "x402",
+    "cross-chain",
+    "agent-communication",
+    "solana"
+  ],
+  "author": "SAID Protocol",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SAID-Protocol/ows-a2a"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0"
+  }
+}
