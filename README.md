@@ -2,6 +2,24 @@
 
 **Identity-Gated Communication for AI Agent Wallets**
 
+[![Tests](https://img.shields.io/badge/tests-19%20passing-brightgreen)](https://github.com/SAID-Protocol/ows-a2a)
+[![npm](https://img.shields.io/badge/npm-v2.0.0-blue)](https://www.npmjs.com/package/said-ows-a2a)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+---
+
+## What's New in v2.0.0
+
+- ✅ **Caching** — 5-minute TTL cache on all read operations (configurable)
+- ✅ **Retry with exponential backoff** — automatic retries on 429/5xx errors
+- ✅ **`createClient()` factory** — configured instance with cache control and invalidation
+- ✅ **Dual CJS/ESM build** — works in both `require()` and `import` projects
+- ✅ **Type-safe** — strict TypeScript with proper response typing (no more `unknown`)
+- ✅ **`getChains()` method** — fetch supported chains from API with static fallback
+- ✅ **`blockSlashed` trust gate** — reject agents that have been slashed on SAID
+- ✅ **19 integration tests** — all passing against live production API
+- ✅ **Discovery demo** — `npm run demo:discover` to browse the agent directory
+
 ---
 
 ## The Problem
@@ -115,9 +133,42 @@ Messages route through the fastest available channel:
 npm install said-ows-a2a
 ```
 
----
-
 ## Usage
+
+### Quick Start (v2.0.0+)
+
+```typescript
+import { createClient } from "said-ows-a2a";
+
+// Create a configured client with caching + retry
+const client = createClient({
+  cacheTtlMs: 60_000,   // 1 minute cache
+  maxRetries: 3,        // retry on 5xx/429
+});
+
+// Verify an agent
+const agent = await client.verifyAgent("4yNvq...");
+console.log(agent?.name, agent?.trustScore?.score);
+
+// Check trust gate before allowing communication
+const gate = await client.evaluateTrustGate(senderWallet, {
+  requireVerified: true,
+  minSenderScore: 30,
+  blockSlashed: true,
+});
+
+if (!gate.allowed) {
+  console.log(`Blocked: ${gate.reason}`);
+}
+
+// Clear cache when needed (e.g., after feedback submission)
+client.invalidate(wallet);
+client.clearCache();
+```
+
+### Standalone Functions (v1 backwards-compatible)
+
+All v1 functions still work without creating a client — they just don't cache:
 
 ### Resolve an Agent
 

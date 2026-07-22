@@ -1,6 +1,8 @@
 /**
  * SAID A2A Communication Types
  * Identity-gated agent-to-agent messaging for OWS wallets
+ *
+ * v2.0.0: Added TrustGateResult, SAIDStats, stricter typing
  */
 
 // ── Chains ─────────────────────────────────────────────
@@ -84,7 +86,7 @@ export interface CrossChainMessage {
   from: { address: string; chain: Chain };
   to: { address: string; chain: Chain };
   message: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 export interface MessageResult {
@@ -100,7 +102,7 @@ export interface MessageResult {
     senderScore: number;
     senderVerified: boolean;
     recipientTier: string;
-  };
+  } | Record<string, unknown>;
   error?: string;
 }
 
@@ -133,4 +135,31 @@ export interface DiscoveryResult {
   agents: AgentIdentity[];
   count: number;
   chains: string[];
+}
+
+// ── Stats ──────────────────────────────────────────────
+
+export interface SAIDStats {
+  totalAgents: number;
+  totalChains: number;
+  chains: Record<string, { source: string; agents: number }>;
+}
+
+// ── Trust Gate ─────────────────────────────────────────
+
+export interface TrustGateConfig {
+  /** Minimum trust score to send messages (0-100) */
+  minSenderScore?: number;
+  /** Require sender to be SAID-verified */
+  requireVerified?: boolean;
+  /** Block anonymous (unregistered) senders */
+  blockAnonymous?: boolean;
+  /** Block agents that have been slashed */
+  blockSlashed?: boolean;
+}
+
+export interface TrustGateResult {
+  allowed: boolean;
+  reason?: string;
+  agent?: AgentIdentity;
 }

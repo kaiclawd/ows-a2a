@@ -1,14 +1,24 @@
 {
   "name": "said-ows-a2a",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "SAID Protocol identity-gated A2A communication for Open Wallet Standard agents",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
+    "build:check": "tsc --noEmit",
     "demo": "ts-node demo/cross-chain-demo.ts",
     "demo:discover": "ts-node demo/discovery-demo.ts",
-    "test": "ts-node demo/cross-chain-demo.ts"
+    "test": "jest --verbose",
+    "test:ci": "jest --ci --verbose"
   },
   "keywords": [
     "ows",
@@ -27,9 +37,19 @@
     "type": "git",
     "url": "https://github.com/SAID-Protocol/ows-a2a"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "ts-node": "^10.9.0"
-  }
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "sideEffects": false
 }
