@@ -2,6 +2,8 @@ export {
   resolveAgent,
   verifyAgent,
   getAgentCard,
+  getEnforcement,
+  getRiskAssessment,
   sendMessage,
   getInbox,
   getFreeTierStatus,
@@ -22,6 +24,9 @@ export type {
   PaymentConfig,
   DiscoveryQuery,
   DiscoveryResult,
+  EnforcementStatus,
+  SlashEvent,
+  RiskAssessment,
 } from "./types";
 
 export type { TrustGateConfig } from "./client";

@@ -1,6 +1,6 @@
 # SAID Protocol × Open Wallet Standard
 
-**Identity-Gated Communication for AI Agent Wallets**
+**Identity-Gated Communication + Enforcement for AI Agent Wallets**
 
 ---
 
@@ -8,104 +8,33 @@
 
 OWS gives agents wallets. [ows-policy](https://github.com/SAID-Protocol/ows-policy) gates what they can **spend**.
 
-But agents also need to **talk to each other** — and communication without identity is dangerous:
+But agents also need to **talk to each other** — and communication without identity and enforcement is dangerous:
 
 - **Spam and phishing** — anonymous agents flood inboxes with zero cost
 - **No trust signal** — a message from a verified agent and a scam bot look identical
-- **No cross-chain** — agents on Solana can’t reach agents on Base or Ethereum
+- **No enforcement** — slashed bad actors can keep messaging
+- **No cross-chain** — agents on Solana can't reach agents on Base or Ethereum
 - **No payment rail** — no way to monetize agent services or rate-limit abuse
 
-**OWS gives agents wallets. SAID gives agents identity. This gives agents communication.**
+**OWS gives agents wallets. SAID gives agents identity + enforcement. This gives agents secure communication.**
 
 ---
 
-## The Solution
+## What's New in v2.0
 
-**SAID A2A** is cross-chain agent-to-agent messaging infrastructure, identity-gated by SAID trust scores and monetized via x402 micropayments.
+**On-chain enforcement data.** The library now exposes SAID's staking/slashing data — the only economic enforcement layer for AI agents on Solana.
 
-- **Cross-chain resolution** — resolve any wallet (Solana or EVM) to agent identity across 10 chains
-- **Identity-gated messaging** — gate who can send messages based on SAID verification and trust scores
-- **x402 micropayments** — 10 free messages/day, then $0.01 USDC via Coinbase x402 SDK
-- **Multi-delivery** — WebSocket (real-time) → A2A endpoint → webhook fallback
-- **Live infrastructure** — running in production at `api.saidprotocol.com`
-
-### The Full OWS Agent Stack
-
-| Layer | Module | What it gates |
-|-------|--------|---------------|
-| **Wallet** | OWS | Key management, signing |
-| **Spending** | [ows-policy](https://github.com/SAID-Protocol/ows-policy) | Transaction limits by trust tier |
-| **Communication** | **ows-a2a** (this repo) | Messaging by trust tier |
-
----
-
-## How It Works
-
-### 1. Cross-Chain Agent Resolution
-
-Any wallet address → agent identity, across all supported chains:
-
-```
-Wallet address (Solana or EVM)
- ↓
-SAID Universal Resolver
- ↓
-Auto-detect chain from address format
- ↓
-Solana → SAID Protocol registry (2,651 agents)
-EVM    → ERC-8004 Identity Registry (9 chains)
- ↓
-Unified agent identity: name, trust score, capabilities, endpoint
-```
-
-**Supported chains:** Solana, Ethereum, Base, Arbitrum, Avalanche, Optimism, Polygon, Celo, Gnosis, BNB
-
-### 2. Trust-Gated Communication
-
-Before delivering a message, SAID checks the sender’s identity:
-
-```
-Agent A wants to message Agent B
- ↓
-Trust gate checks Agent A:
-  ✅ Is Agent A registered on SAID?
-  ✅ Is Agent A verified? (0.01 SOL)
-  ✅ What’s Agent A’s trust score? (6-component, 0-100)
-  ✅ Does Agent A meet the recipient’s trust threshold?
- ↓
-All checks pass → Message delivered
-Any check fails → Message denied with reason
-```
-
-### 3. x402 Payment Rail
-
-After 10 free messages/day, agents pay $0.01 USDC per message via x402:
-
-```
-Agent sends message
- ↓
-Free tier check: messages remaining today?
- ↓
-YES → Deliver free
-NO  → Return HTTP 402 (Payment Required)
-     → Agent pays $0.01 USDC via x402 SDK
-     → Payment settles on Solana, Base, Polygon, or Avalanche
-     → Message delivered
-```
-
-**Payment infrastructure:**
-- Coinbase x402 SDK (joined Linux Foundation April 2, 2026)
-- PayAI facilitator (wide chain support)
-- Dexter facilitator (3.2M+ settlements)
-- Treasury: `EK3mP45iwgDEEts2cEDfhAs2i4PrH63NMG7vHg2d6fas`
-
-### 4. Multi-Delivery
-
-Messages route through the fastest available channel:
-
-1. **WebSocket** — real-time push (Ed25519 authenticated)
-2. **A2A endpoint** — HTTP POST to agent’s registered endpoint
-3. **Webhook** — HMAC-SHA256 signed delivery to registered URL
+| Feature | v1.0 | v2.0 |
+|---------|------|------|
+| Agent resolution | ✅ | ✅ |
+| Trust-gated messaging | ✅ | ✅ |
+| x402 payment | ✅ | ✅ |
+| **Enforcement data** (staking/slashing) | ❌ | ✅ |
+| **Risk assessment** (accept/review/reject) | ❌ | ✅ |
+| **Block slashed agents** | ❌ | ✅ |
+| **Minimum stake requirement** | ❌ | ✅ |
+| **Retry with backoff** | ❌ | ✅ |
+| **Real test suite** | ❌ (demo as test) | ✅ (22 tests) |
 
 ---
 
@@ -117,24 +46,49 @@ npm install said-ows-a2a
 
 ---
 
-## Usage
+## Quick Start
 
-### Resolve an Agent
+### Check Enforcement Status
 
 ```typescript
-import { resolveAgent, verifyAgent } from "said-ows-a2a";
+import { getEnforcement } from "said-ows-a2a";
 
-// Auto-detect chain from address format
-const agents = await resolveAgent("4yNvqCyocbyqMVWQsztXaW5iZAsnb8wQy8Ghg58uSN9Q");
-// → [{ address, chain: "solana", source: "said", verified: true, trustScore: {...} }]
+const enforcement = await getEnforcement("4yNvq...");
+// → { staked: true, stakeAmountSOL: 5.2, slashed: false, slashCount: 0, enforcementTier: "economic" }
+```
 
-// Resolve EVM address across all chains
-const evmAgents = await resolveAgent("0x1234...abcd");
-// → Checks Ethereum, Base, Arbitrum, Avalanche, Optimism, Polygon, Celo, Gnosis, BNB
+### Get Risk Assessment (Marketplace Verdict)
 
-// Get full SAID verification + trust breakdown
-const agent = await verifyAgent("4yNvqCyocbyqMVWQsztXaW5iZAsnb8wQy8Ghg58uSN9Q");
-// → { verified: true, trustScore: { score: 39, tier: "bronze", identity: 8, ... } }
+```typescript
+import { getRiskAssessment } from "said-ows-a2a";
+
+const risk = await getRiskAssessment("4yNvq...");
+// → {
+//   score: 72, tier: "gold", verified: true,
+//   riskLevel: "low", verdict: "accept",
+//   escrowPct: 0, spendCap: 10000,
+//   staked: true, stakeAmountSOL: 5.2,
+//   slashed: false, slashCount: 0
+// }
+```
+
+### Gate Messages by Trust + Enforcement
+
+```typescript
+import { evaluateTrustGate } from "said-ows-a2a";
+
+// v2.0: Block slashed agents, require 1 SOL stake
+const gate = await evaluateTrustGate(senderWallet, {
+  requireVerified: true,
+  minSenderScore: 50,
+  blockSlashed: true,      // 🆕 Reject slashed agents
+  minStakeSOL: 1,          // 🆕 Require economic skin-in-the-game
+  blockAnonymous: true,
+});
+
+if (!gate.allowed) {
+  console.log(`Blocked: ${gate.reason}`);
+}
 ```
 
 ### Send a Cross-Chain Message
@@ -148,31 +102,9 @@ const result = await sendMessage({
   message: "Execute trade: swap 100 USDC for SOL",
   context: { action: "trade", amount: 100 },
 });
-
-// result.status: "delivered" | "stored" | "payment_required" | "denied"
-// result.deliveredVia: ["ws", "a2a", "webhook"]
-// result.paid: false (free tier) | true (x402 settled)
 ```
 
-### Gate Messages by Trust
-
-```typescript
-import { evaluateTrustGate } from "said-ows-a2a";
-
-// Only allow verified agents with score >= 50
-const gate = await evaluateTrustGate(senderWallet, {
-  requireVerified: true,
-  minSenderScore: 50,
-  blockAnonymous: true,
-});
-
-if (!gate.allowed) {
-  console.log(`Blocked: ${gate.reason}`);
-  // → "Trust score 39 below minimum 50"
-}
-```
-
-### Discover Agents
+### Discover Verified Agents
 
 ```typescript
 import { discoverAgents } from "said-ows-a2a";
@@ -183,120 +115,79 @@ const result = await discoverAgents({
   chains: ["solana", "base"],
   limit: 50,
 });
-// → { agents: [...], count: 50, chains: ["solana", "base"] }
 ```
 
 ---
 
-## Demo
+## API Reference
 
-```bash
-npm install
-npm run demo
-```
+### Agent Resolution
+| Function | Description |
+|----------|-------------|
+| `resolveAgent(address, chain?)` | Resolve any wallet to agent identities across 10 chains |
+| `verifyAgent(wallet)` | Get full SAID verification + trust score breakdown |
+| `getAgentCard(wallet)` | Fetch A2A-compliant agent card |
 
-Output shows: cross-chain stats → agent resolution → trust gating → x402 payment status → live message send → agent discovery.
+### Enforcement (v2.0)
+| Function | Description |
+|----------|-------------|
+| `getEnforcement(wallet)` | On-chain staking/slashing status |
+| `getRiskAssessment(wallet)` | Full risk assessment with marketplace verdict |
 
----
+### Messaging
+| Function | Description |
+|----------|-------------|
+| `sendMessage(msg)` | Cross-chain A2A message (x402-gated) |
+| `getInbox(chain, address, limit?)` | Fetch agent inbox |
+| `getFreeTierStatus(address)` | Check x402 free tier usage |
 
-## Architecture
+### Discovery
+| Function | Description |
+|----------|-------------|
+| `discoverAgents(query)` | Search agents across chains |
+| `getStats()` | Cross-chain registry stats |
 
-```
-┌─────────────────┐     ┌─────────────────┐
-│   OWS Wallet    │     │   OWS Wallet    │
-│   (Agent A)     │     │   (Agent B)     │
-└────────┬────────┘     └────────▲────────┘
-         │                       │
-         │ sendMessage()         │ WebSocket / A2A / Webhook
-         ↓                       │
-┌─────────────────────────────────────────┐
-│          SAID A2A Layer                 │
-│                                         │
-│  ┌──────────┐  ┌──────────┐  ┌───────┐ │
-│  │ Universal │  │  Trust   │  │ x402  │ │
-│  │ Resolver  │  │  Gate    │  │ Gate  │ │
-│  │           │  │          │  │       │ │
-│  │ Solana    │  │ Score≥N? │  │ Free? │ │
-│  │ +9 EVM   │  │ Verified?│  │ $0.01 │ │
-│  └──────────┘  └──────────┘  └───────┘ │
-│                                         │
-│  ┌──────────────────────────────────┐   │
-│  │     Multi-Delivery Engine        │   │
-│  │  WS → A2A Endpoint → Webhook    │   │
-│  └──────────────────────────────────┘   │
-└─────────────────────────────────────────┘
-         │                       │
-         ↓                       ↓
-┌─────────────────┐     ┌─────────────────┐
-│  SAID Protocol  │     │   ERC-8004      │
-│  (Solana)       │     │   (EVM Chains)  │
-│  2,651 agents   │     │   9 chains      │
-└─────────────────┘     └─────────────────┘
-```
+### Trust Gate
+| Function | Description |
+|----------|-------------|
+| `evaluateTrustGate(address, config)` | Check if agent should be allowed to communicate |
+
+**TrustGateConfig options:**
+- `minSenderScore` — minimum trust score (0-100)
+- `requireVerified` — require SAID verification
+- `blockAnonymous` — block unregistered addresses
+- `blockSlashed` — 🆕 reject agents that have been slashed on-chain
+- `minStakeSOL` — 🆕 require minimum SOL staked
 
 ---
 
-## Relationship to ows-policy
+## The Full OWS Agent Stack
 
-These two modules are complementary halves of the SAID × OWS integration:
+| Layer | Module | What it gates |
+|-------|--------|---------------|
+| **Wallet** | OWS | Key management, signing |
+| **Spending** | [ows-policy](https://github.com/SAID-Protocol/ows-policy) | Transaction limits by trust tier |
+| **Communication** | **ows-a2a** (this repo) | Messaging by trust + enforcement |
 
-| | ows-policy | ows-a2a |
-|---|---|---|
-| **Gates** | Transaction signing | Message delivery |
-| **Based on** | Trust score → spending limits | Trust score → communication access |
-| **Payment** | Spending caps by tier | x402 micropayments |
-| **Use case** | "Can this agent spend $250?" | "Can this agent message me?" |
-| **Safety ref** | Lobstar Wilde ($450K drained) | Spam/phishing prevention |
+Together: agents that can hold money AND talk to each other, with trust scores AND economic enforcement governing both what they spend and who they communicate with.
 
-Together they form a complete trust layer for OWS agent wallets:
-- **Hold money** (OWS) → **Spend safely** (ows-policy) → **Communicate securely** (ows-a2a)
+---
+
+## Supported Chains
+
+Solana, Ethereum, Base, Arbitrum, Avalanche, Optimism, Polygon, Celo, Gnosis, BNB
 
 ---
 
 ## Live Infrastructure
 
-This is not a prototype. The A2A communication layer runs in production:
-
 - **API:** [api.saidprotocol.com](https://api.saidprotocol.com)
-- **Mainnet Program:** `5dpw6KEQPn248pnkkaYyWfHwu2nfb3LUMbTucb6LaA8G`
-- **Registered Agents:** 2,651
-- **Verified Agents:** 2,591 (97.7%)
-- **Supported Chains:** 10 (Solana + 9 EVM via ERC-8004)
-- **Payment Protocol:** x402 (Coinbase SDK)
-- **Website:** [saidprotocol.com](https://saidprotocol.com)
-
----
-
-## API Endpoints (Live)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/xchain/resolve/:address` | Universal agent resolution |
-| GET | `/xchain/resolve/token/:chain/:tokenId` | ERC-8004 token lookup |
-| POST | `/xchain/message` | Cross-chain message (x402 gated) |
-| GET | `/xchain/inbox/:chain/:address` | Agent inbox |
-| GET | `/xchain/discover` | Agent discovery |
-| GET | `/xchain/stats` | Cross-chain registry stats |
-| GET | `/xchain/chains` | Supported chains list |
-| GET | `/xchain/free-tier/:address` | Free tier status |
-| POST | `/xchain/webhook` | Register delivery webhook |
-| GET | `/a2a/:wallet/agent-card.json` | A2A agent card |
-| POST | `/a2a/:wallet/message` | Direct A2A message |
-| GET | `/a2a/:wallet/inbox` | Agent inbox |
-| WS | `/ws` | Real-time WebSocket |
+- **Program:** `5dpw6KEQPn248pnkkaYyWfHwu2nfb3LUMbTucb6LaA8G`
+- **6,700+ registered agents** | **94%+ verified**
+- **x402 payment** (Linux Foundation standard)
 
 ---
 
 ## License
 
 MIT
-
----
-
-## Built For
-
-**Open Wallet Standard Hackathon, April 3-4, 2026**
-
-OWS gives agents wallets. SAID gives them identity and trust. This gives them secure, cross-chain communication.
-
-**2,651 agents. 10 chains. x402 micropayments. Live in production.**

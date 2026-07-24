@@ -1,6 +1,7 @@
 /**
- * SAID A2A Communication Types
+ * SAID A2A Communication Types v2.0.0
  * Identity-gated agent-to-agent messaging for OWS wallets
+ * Includes enforcement data types (staking/slashing/risk)
  */
 
 // ── Chains ─────────────────────────────────────────────
@@ -133,4 +134,66 @@ export interface DiscoveryResult {
   agents: AgentIdentity[];
   count: number;
   chains: string[];
+}
+
+// ── Enforcement (v2.0 — On-chain economic security) ────
+
+export interface SlashEvent {
+  amount: number;
+  reason: string;
+  timestamp: string;
+  slashedBy: string;
+}
+
+export interface EnforcementStatus {
+  wallet: string;
+  /** Whether agent has active stake on SAID protocol */
+  staked: boolean;
+  /** Raw stake amount in lamports */
+  stakeAmount: number;
+  /** Stake amount in SOL (human-readable) */
+  stakeAmountSOL: number;
+  /** Whether agent has ever been slashed */
+  slashed: boolean;
+  /** Number of slash events */
+  slashCount: number;
+  /** Slash history */
+  slashHistory: SlashEvent[];
+  /** Enforcement tier: "economic" (staked), "reputation" (registered), "none" */
+  enforcementTier: "economic" | "reputation" | "none";
+  lastUpdated: string;
+}
+
+// ── Risk Assessment (v2.0 — Marketplace-ready) ─────────
+
+export interface RiskAssessment {
+  wallet: string;
+  /** Trust score 0-100 */
+  score: number;
+  /** Trust tier (platinum/gold/silver/bronze/unverified) */
+  tier: string;
+  /** SAID verified */
+  verified: boolean;
+  /** Risk classification */
+  riskLevel: "low" | "medium" | "high" | "critical";
+  /** Marketplace verdict */
+  verdict: "accept" | "review" | "reject";
+  /** Recommended escrow percentage (0-100) */
+  escrowPct: number;
+  /** Maximum recommended spend in USD */
+  spendCap: number;
+  /** Enforcement data */
+  staked: boolean;
+  stakeAmountSOL: number;
+  slashed: boolean;
+  slashCount: number;
+  /** Risk factors breakdown */
+  factors: {
+    trustScore: number;
+    verified: boolean;
+    hasStake: boolean;
+    stakeAmountSOL: number;
+    isSlashed: boolean;
+    slashCount: number;
+  };
 }
