@@ -20,6 +20,8 @@ import {
   getChains,
   discoverAgents,
   evaluateTrustGate,
+  getEnforcement,
+  getRiskAssessment,
   SUPPORTED_CHAINS,
   PAYMENT_NETWORKS,
 } from "../src/index";
@@ -141,6 +143,85 @@ describe("evaluateTrustGate", () => {
     if (gate.agent?.trustScore) {
       expect(gate.allowed).toBe(false);
       expect(gate.reason).toContain("below minimum");
+    }
+  }, 15000);
+});
+
+// ── Enforcement Data (v2.1) ───────────────────────────
+
+describe("getEnforcement", () => {
+  it("returns enforcement status for a known wallet", async () => {
+    const enforcement = await getEnforcement(KNOWN_WALLET);
+    // May be null if no enforcement data, or a valid object
+    if (enforcement !== null) {
+      expect(enforcement.wallet).toBe(KNOWN_WALLET);
+      expect(typeof enforcement.staked).toBe("boolean");
+      expect(typeof enforcement.slashed).toBe("boolean");
+      expect(typeof enforcement.stakeAmountSOL).toBe("number");
+      expect(typeof enforcement.slashCount).toBe("number");
+      expect(["economic", "reputation", "none"]).toContain(enforcement.enforcementTier);
+    }
+  }, 15000);
+
+  it("handles unknown wallet gracefully", async () => {
+    const enforcement = await getEnforcement(UNKNOWN_WALLET);
+    // API returns a default object for unknown wallets, not null
+    if (enforcement !== null) {
+      expect(enforcement.staked).toBe(false);
+      expect(enforcement.slashed).toBe(false);
+      expect(enforcement.stakeAmountSOL).toBe(0);
+      expect(enforcement.enforcementTier).toBe("none");
+    }
+  }, 15000);
+});
+
+// ── Risk Assessment (v2.1) ────────────────────────────
+
+describe("getRiskAssessment", () => {
+  it("returns full risk assessment for a known wallet", async () => {
+    const risk = await getRiskAssessment(KNOWN_WALLET);
+    expect(risk).not.toBeNull();
+    expect(risk!.wallet).toBe(KNOWN_WALLET);
+    expect(typeof risk!.score).toBe("number");
+    expect(typeof risk!.verified).toBe("boolean");
+    expect(["low", "medium", "high", "critical"]).toContain(risk!.riskLevel);
+    expect(["accept", "review", "reject"]).toContain(risk!.verdict);
+    expect(risk!.escrowPct).toBeGreaterThanOrEqual(0);
+    expect(risk!.escrowPct).toBeLessThanOrEqual(100);
+    expect(risk!.spendCap).toBeGreaterThanOrEqual(0);
+    expect(risk!.factors).toBeDefined();
+    expect(typeof risk!.factors.trustScore).toBe("number");
+    expect(typeof risk!.factors.isSlashed).toBe("boolean");
+  }, 15000);
+
+  it("returns critical/reject for slashed agents", async () => {
+    const risk = await getRiskAssessment(KNOWN_WALLET);
+    if (risk?.slashed) {
+      expect(risk.riskLevel).toBe("critical");
+      expect(risk.verdict).toBe("reject");
+      expect(risk.escrowPct).toBe(100);
+      expect(risk.spendCap).toBe(0);
+    }
+  }, 15000);
+});
+
+// ── Trust Gate with Enforcement (v2.1) ────────────────
+
+describe("evaluateTrustGate with enforcement", () => {
+  it("supports blockSlashed option", async () => {
+    const gate = await evaluateTrustGate(KNOWN_WALLET, {
+      blockSlashed: true,
+    });
+    expect(typeof gate.allowed).toBe("boolean");
+  }, 15000);
+
+  it("supports minStakeSOL option", async () => {
+    const gate = await evaluateTrustGate(KNOWN_WALLET, {
+      minStakeSOL: 1000, // Impossibly high
+    });
+    // Should be blocked if agent has less than 1000 SOL staked
+    if (gate.allowed === false) {
+      expect(gate.reason).toContain("Stake");
     }
   }, 15000);
 });

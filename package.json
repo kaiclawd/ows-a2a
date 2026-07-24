@@ -1,6 +1,6 @@
 {
   "name": "said-ows-a2a",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "SAID Protocol identity-gated A2A communication for Open Wallet Standard agents",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

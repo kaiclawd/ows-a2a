@@ -1,5 +1,4 @@
 import {
-  resolveAgent,
   verifyAgent,
   getFreeTierStatus,
   sendMessage,

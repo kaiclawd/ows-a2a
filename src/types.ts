@@ -156,10 +156,58 @@ export interface TrustGateConfig {
   blockAnonymous?: boolean;
   /** Block agents that have been slashed */
   blockSlashed?: boolean;
+  /** Require minimum stake in SOL */
+  minStakeSOL?: number;
 }
 
 export interface TrustGateResult {
   allowed: boolean;
   reason?: string;
   agent?: AgentIdentity;
+}
+
+// ── Enforcement (v2.1 — On-chain economic security) ────
+
+export interface SlashEvent {
+  amount: number;
+  reason: string;
+  timestamp: string;
+  slashedBy: string;
+}
+
+export interface EnforcementStatus {
+  wallet: string;
+  staked: boolean;
+  stakeAmount: number;
+  stakeAmountSOL: number;
+  slashed: boolean;
+  slashCount: number;
+  slashHistory: SlashEvent[];
+  enforcementTier: "economic" | "reputation" | "none";
+  lastUpdated: string;
+}
+
+// ── Risk Assessment (v2.1 — Marketplace-ready) ─────────
+
+export interface RiskAssessment {
+  wallet: string;
+  score: number;
+  tier: string;
+  verified: boolean;
+  riskLevel: "low" | "medium" | "high" | "critical";
+  verdict: "accept" | "review" | "reject";
+  escrowPct: number;
+  spendCap: number;
+  staked: boolean;
+  stakeAmountSOL: number;
+  slashed: boolean;
+  slashCount: number;
+  factors: {
+    trustScore: number;
+    verified: boolean;
+    hasStake: boolean;
+    stakeAmountSOL: number;
+    isSlashed: boolean;
+    slashCount: number;
+  };
 }

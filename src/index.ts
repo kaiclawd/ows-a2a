@@ -12,6 +12,8 @@ export {
   getStats,
   getChains,
   evaluateTrustGate,
+  getEnforcement,
+  getRiskAssessment,
   // Constants
   SUPPORTED_CHAINS,
   PAYMENT_NETWORKS,
@@ -30,6 +32,9 @@ export type {
   SAIDStats,
   TrustGateConfig,
   TrustGateResult,
+  EnforcementStatus,
+  RiskAssessment,
+  SlashEvent,
 } from "./types";
 
 export type { SAIDClientOptions } from "./client";
