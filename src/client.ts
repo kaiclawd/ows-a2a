@@ -7,7 +7,7 @@
  * - Agent discovery across chains
  * - Trust-gated communication policies
  *
- * v2.0.0: Added caching, retry, proper typing, getChains()
+ * v2.1.0: Added enforcement data (staking/slashing), risk assessment
  */
 
 import type {
@@ -22,6 +22,8 @@ import type {
   TrustGateConfig,
   TrustGateResult,
   SAIDStats,
+  EnforcementStatus,
+  RiskAssessment,
 } from "./types";
 
 // ── Configuration ──────────────────────────────────────
@@ -506,13 +508,26 @@ export function createClient(opts: SAIDClientOptions = {}) {
         }
       }
 
-      // Check if agent has been slashed (if trust data available)
-      if (config.blockSlashed && agent.trustScore) {
-        const tier = agent.trustScore.tier.toLowerCase();
-        if (tier === "slashed" || tier === "penalized") {
+      // Check if agent has been slashed using real on-chain enforcement data
+      if (config.blockSlashed || config.minStakeSOL !== undefined) {
+        const enforcement = await this.getEnforcement(senderAddress);
+
+        if (config.blockSlashed && enforcement?.slashed) {
           return {
             allowed: false,
-            reason: "Agent has been slashed on SAID Protocol.",
+            reason: `Agent has been slashed ${enforcement.slashCount}x on-chain. Economic enforcement active.`,
+            agent,
+          };
+        }
+
+        if (
+          config.minStakeSOL !== undefined &&
+          enforcement &&
+          enforcement.stakeAmountSOL < config.minStakeSOL
+        ) {
+          return {
+            allowed: false,
+            reason: `Stake ${enforcement.stakeAmountSOL.toFixed(2)} SOL below minimum ${config.minStakeSOL} SOL`,
             agent,
           };
         }
@@ -521,11 +536,141 @@ export function createClient(opts: SAIDClientOptions = {}) {
       return { allowed: true, agent };
     },
 
+    /**
+     * Get on-chain enforcement status (staking/slashing) for an agent.
+     *
+     * This is SAID's unique differentiator — no other identity registry
+     * has economic enforcement. Returns staked SOL, slashing history,
+     * and enforcement tier.
+     *
+     * v2.1: NEW — queries /api/enforcement/:wallet
+     */
+    async getEnforcement(wallet: string): Promise<EnforcementStatus | null> {
+      const cached = cache.get<EnforcementStatus | null>(`enforcement:${wallet}`);
+      if (cached) return cached;
+
+      const res = await fetchWithRetry(
+        `${apiBase}/api/enforcement/${wallet}`,
+        undefined,
+        maxRetries,
+      );
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error(`Enforcement query failed: ${res.status}`);
+      }
+
+      const data: any = await res.json();
+      const result: EnforcementStatus = {
+        wallet: data.wallet || wallet,
+        staked: data.staked || false,
+        stakeAmount: data.stakeAmount || 0,
+        stakeAmountSOL: data.stakeAmountSOL || 0,
+        slashed: data.slashed || false,
+        slashCount: data.slashCount || 0,
+        slashHistory: data.slashHistory || [],
+        enforcementTier: data.enforcementTier || "none",
+        lastUpdated: data.lastUpdated || new Date().toISOString(),
+      };
+
+      cache.set(`enforcement:${wallet}`, result);
+      return result;
+    },
+
+    /**
+     * Get risk assessment for an agent — combines trust score + enforcement.
+     *
+     * Returns a marketplace-ready verdict (accept/review/reject),
+     * recommended escrow percentage, and spend caps.
+     *
+     * v2.1: NEW
+     */
+    async getRiskAssessment(wallet: string): Promise<RiskAssessment | null> {
+      const cached = cache.get<RiskAssessment | null>(`risk:${wallet}`);
+      if (cached) return cached;
+
+      // Fetch verification + enforcement in parallel
+      const [agent, enforcement] = await Promise.all([
+        this.verifyAgent(wallet),
+        this.getEnforcement(wallet),
+      ]);
+
+      if (!agent) return null;
+
+      const score = agent.trustScore?.score ?? 0;
+      const slashed = enforcement?.slashed ?? false;
+      const stakeAmount = enforcement?.stakeAmountSOL ?? 0;
+
+      let riskLevel: RiskAssessment["riskLevel"];
+      let verdict: RiskAssessment["verdict"];
+      let escrowPct: number;
+      let spendCap: number;
+
+      if (slashed) {
+        riskLevel = "critical";
+        verdict = "reject";
+        escrowPct = 100;
+        spendCap = 0;
+      } else if (score >= 70 && agent.verified) {
+        riskLevel = "low";
+        verdict = "accept";
+        escrowPct = 0;
+        spendCap = 10_000;
+      } else if (score >= 50 && agent.verified) {
+        riskLevel = "medium";
+        verdict = "review";
+        escrowPct = 25;
+        spendCap = 1_000;
+      } else if (score >= 25) {
+        riskLevel = "high";
+        verdict = "review";
+        escrowPct = 50;
+        spendCap = 250;
+      } else {
+        riskLevel = "critical";
+        verdict = "reject";
+        escrowPct = 100;
+        spendCap = 0;
+      }
+
+      // Stake bonus: staked agents get lower escrow
+      if (stakeAmount >= 1 && !slashed) {
+        escrowPct = Math.max(0, escrowPct - 10);
+      }
+
+      const result: RiskAssessment = {
+        wallet,
+        score,
+        tier: agent.trustScore?.tier || "unknown",
+        verified: agent.verified,
+        riskLevel,
+        verdict,
+        escrowPct,
+        spendCap,
+        staked: enforcement?.staked ?? false,
+        stakeAmountSOL: stakeAmount,
+        slashed,
+        slashCount: enforcement?.slashCount ?? 0,
+        factors: {
+          trustScore: score,
+          verified: agent.verified,
+          hasStake: enforcement?.staked ?? false,
+          stakeAmountSOL: stakeAmount,
+          isSlashed: slashed,
+          slashCount: enforcement?.slashCount ?? 0,
+        },
+      };
+
+      cache.set(`risk:${wallet}`, result);
+      return result;
+    },
+
     /** Invalidate cache for a specific wallet */
     invalidate(wallet: string): void {
       cache.delete(`verify:${wallet}`);
       cache.delete(`resolve:${wallet}:auto`);
       cache.delete(`card:${wallet}`);
+      cache.delete(`enforcement:${wallet}`);
+      cache.delete(`risk:${wallet}`);
     },
   };
 }
@@ -607,4 +752,22 @@ export async function evaluateTrustGate(
   config: TrustGateConfig = {}
 ): Promise<TrustGateResult> {
   return defaultClient.evaluateTrustGate(senderAddress, config);
+}
+
+/**
+ * Get on-chain enforcement status (staking/slashing) for an agent.
+ *
+ * v2.1: NEW — queries SAID's on-chain enforcement data.
+ */
+export async function getEnforcement(wallet: string): Promise<EnforcementStatus | null> {
+  return defaultClient.getEnforcement(wallet);
+}
+
+/**
+ * Get risk assessment for an agent — marketplace-ready verdict.
+ *
+ * v2.1: NEW — combines trust score + enforcement into accept/review/reject.
+ */
+export async function getRiskAssessment(wallet: string): Promise<RiskAssessment | null> {
+  return defaultClient.getRiskAssessment(wallet);
 }
