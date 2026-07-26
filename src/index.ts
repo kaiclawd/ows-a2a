@@ -1,6 +1,8 @@
 export {
   resolveAgent,
   verifyAgent,
+  getEnforcement,
+  getUnifiedTrust,
   getAgentCard,
   sendMessage,
   getInbox,
@@ -10,6 +12,12 @@ export {
   evaluateTrustGate,
   SUPPORTED_CHAINS,
   PAYMENT_NETWORKS,
+  // Preset policies
+  STRICT_POLICY,
+  BALANCED_POLICY,
+  PERMISSIVE_POLICY,
+  MARKETPLACE_POLICY,
+  MAXIMUM_SECURITY_POLICY,
 } from "./client";
 
 export type {
@@ -22,6 +30,11 @@ export type {
   PaymentConfig,
   DiscoveryQuery,
   DiscoveryResult,
+  EnforcementData,
+  UnifiedTrustResult,
 } from "./types";
 
-export type { TrustGateConfig } from "./client";
+export type {
+  TrustGateConfig,
+  TrustGateResult,
+} from "./client";

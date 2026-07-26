@@ -45,6 +45,47 @@ export interface AgentIdentity {
   registeredAt?: string;
 }
 
+// ── Enforcement (Economic Trust) ──────────────────────
+
+/** On-chain staking and slashing data — SAID's unique differentiator */
+export interface EnforcementData {
+  /** Whether the agent has staked SOL as collateral */
+  staked: boolean;
+  /** Whether the agent has been slashed (penalized for misbehavior) */
+  slashed: boolean;
+  /** Number of slashing events */
+  slashCount: number;
+  /** Enforcement tier: 'gold' | 'silver' | 'bronze' | 'none' */
+  enforcementTier: string;
+  /** Stake account PDA address */
+  stakePda?: string;
+  /** Amount staked in SOL */
+  stakeAmountSOL?: number;
+  /** Last slash slot number */
+  lastSlashSlot?: number;
+}
+
+// ── Unified Trust (Identity + Enforcement) ────────────
+
+/** Combined identity verification + economic enforcement verdict */
+export interface UnifiedTrustResult {
+  wallet: string;
+  /** Agent identity (null if not registered) */
+  identity: AgentIdentity | null;
+  /** Enforcement data (null if API unavailable) */
+  enforcement: EnforcementData | null;
+  /** Overall trust verdict */
+  verdict: 'trusted' | 'provisional' | 'insufficient_evidence' | 'untrusted';
+  /** Whether the agent has real economic skin-in-the-game */
+  hasSkinInGame: boolean;
+  /** Recommended maximum transaction value in USDC */
+  maxTxValueUSDC: number;
+  /** Recommended escrow percentage based on trust level */
+  recommendedEscrowPct: number;
+  /** Human-readable insight */
+  insight: string;
+}
+
 // ── Agent Card (A2A Discovery) ─────────────────────────
 
 export interface AgentCard {
@@ -99,6 +140,8 @@ export interface MessageResult {
     senderTier: string;
     senderScore: number;
     senderVerified: boolean;
+    senderStaked?: boolean;
+    senderSlashed?: boolean;
     recipientTier: string;
   };
   error?: string;

@@ -1,25 +1,45 @@
 {
-  "name": "said-ows-a2a",
-  "version": "1.0.0",
-  "description": "SAID Protocol identity-gated A2A communication for Open Wallet Standard agents",
+  "name": "@said-protocol/ows-a2a",
+  "version": "2.0.0",
+  "description": "SAID Protocol enforcement-native A2A communication for AI agents — identity-gated messaging with staking/slashing integration",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "tsc",
-    "demo": "ts-node demo/cross-chain-demo.ts",
-    "demo:discover": "ts-node demo/discovery-demo.ts",
-    "test": "ts-node demo/cross-chain-demo.ts"
+    "build": "tsup",
+    "test": "tsup && node dist/test/a2a.test.js",
+    "demo": "tsup && node dist/demo/cross-chain-demo.js",
+    "demo:discover": "tsup && node dist/demo/cross-chain-demo.js",
+    "prepublishOnly": "tsup"
   },
   "keywords": [
+    "said-protocol",
     "ows",
     "open-wallet-standard",
-    "said-protocol",
     "a2a",
     "agent-to-agent",
+    "agent-communication",
     "x402",
     "cross-chain",
-    "agent-communication",
-    "solana"
+    "solana",
+    "staking",
+    "slashing",
+    "enforcement",
+    "trust",
+    "identity"
   ],
   "author": "SAID Protocol",
   "license": "MIT",
@@ -30,6 +50,9 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0",
-    "ts-node": "^10.9.0"
+    "tsup": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
